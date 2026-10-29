@@ -12,7 +12,7 @@ The hosted Streamlit interface connects over HTTPS to a separately deployed **Fa
 
 The **AI Copilot** is available to authorised reviewers with a separately supplied access code. It uses OpenAI tool calling to retrieve information and execute trusted portfolio tools; supporting document search is available without AI access. Please request the access code privately—**no API keys or passwords are published in this repository**.
 
-The hosted API operates in read-only demo mode, while local development retains controlled mutation/reset capabilities. The demonstration has been checked in a normal browser, a private browsing session and on another laptop. It remains an **independent prototype using synthetic data**, not an IFS/Copperleaf customer implementation, enterprise production deployment or a validated real-world investment methodology. Hosted service startup delays and usage limits may apply.
+The hosted API operates in read-only demo mode, while local development retains controlled mutation/reset capabilities. The demonstration has been checked in a normal browser, a private browsing session and on another laptop. It remains an **independent prototype using synthetic data**, not a commercial customer implementation, enterprise production deployment or a validated real-world investment methodology. Hosted service startup delays and usage limits may apply.
 
 
 
@@ -104,7 +104,7 @@ This is a **personal exploration of the problem and the engineering trade-offs**
 
 **Iteration 3 — test sensitivity and explainability:** implement a controlled A133 condition-change regression test, an interactive in-memory before/after comparison, and a 15-run sensitivity grid over five asset conditions and three capital budgets.
 
-The detailed change request and enterprise considerations are documented in `docs/customer_change_request.md` and `docs/productionisation.md`.
+The hypothetical integration case study and enterprise considerations are documented in `docs/customer_change_request.md` and `docs/productionisation.md`.
 
 ## Strategy and optimiser
 

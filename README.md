@@ -137,9 +137,12 @@ A synthetic customer investment policy is included. The optional `scripts/fetch_
 
 The retrieval layer is not a regulatory compliance engine. Source provenance, document date and the distinction between customer assumptions and regulatory text remain important when interpreting answers.
 
-## Run locally (Windows PowerShell)
+## Run locally (Windows / VS Code)
 
-Run commands from the **project root**, the directory containing `app.py`, `src/`, `tests/` and `requirements.txt`.
+The application was developed using Python in Visual Studio Code on Windows. The following instructions use PowerShell commands, which can be run either in the VS Code integrated terminal or in a standalone PowerShell window.
+
+Run commands from the project root, the directory containing
+`app.py`, `src/`, `tests/` and `requirements.txt`.
 
 ### 1. Set up the virtual environment
 

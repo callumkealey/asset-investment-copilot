@@ -1,16 +1,16 @@
-# FDE Change Request: Live Asset Condition
+# Integration Case Study: Live Asset Condition
 
 ## Initial prototype
 
 The first prototype accepts an investment portfolio, validates it, scores projects against strategic criteria and optimises the funded portfolio within a capital constraint.
 
-## Customer feedback
+## Hypothetical requirement
 
-> “The prototype is useful, but asset condition changes regularly and is maintained in our enterprise asset-management system. We do not want investment planners maintaining a separate condition field in the portfolio spreadsheet.”
+> *Fictional stakeholder statement:* “Asset condition changes regularly and is maintained in our enterprise asset-management system. We do not want investment planners maintaining a separate condition field in the portfolio spreadsheet.”
 
 ## Hypothesis
 
-Integrating current condition records will improve the credibility of the prioritisation process, reduce manual reconciliation and make ranking changes traceable to the system of record.
+Integrating current condition records could improve the credibility of prioritisation, reduce manual reconciliation and make ranking changes traceable to the simulated system of record. This is a design hypothesis, not a measured operational benefit.
 
 ## Smallest safe prototype
 
@@ -21,6 +21,6 @@ Integrating current condition records will improve the credibility of the priori
 5. Re-run the deterministic scoring and capital allocation.
 6. Show which rankings changed and why.
 
-## What this deliberately does not claim
+## Scope and limitations
 
 The mock API is not a production enterprise asset-management product or an official integration. It is a small integration boundary designed to demonstrate authentication, retrieval, reconciliation, exception handling and downstream decision impact.

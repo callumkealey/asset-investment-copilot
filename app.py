@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import os
 import time
+import hmac
+import threading
 from pathlib import Path
 
 import pandas as pd
@@ -26,6 +28,14 @@ from src.validation import validate_asset_reconciliation, validate_portfolio
 load_dotenv()
 ROOT = Path(__file__).resolve().parent
 HOSTED_DEMO = os.getenv("HOSTED_DEMO_MODE", "false").lower() == "true"
+AI_DEMO_PASSWORD = os.getenv("AI_DEMO_PASSWORD", "")
+AI_DEMO_SESSION_LIMIT = 5
+AI_DEMO_GLOBAL_LIMIT = 30
+
+@st.cache_resource(show_spinner=False)
+def demo_usage_counter():
+    return {"lock": threading.Lock(), "count": 0}
+
 
 st.set_page_config(page_title="AI Asset Investment Planning Copilot", layout="wide")
 st.title("AI Asset Investment Planning Copilot")
@@ -381,23 +391,68 @@ with tab_copilot:
             st.write(hit["text"][:900] + ("…" if len(hit["text"]) > 900 else ""))
 
     has_key = bool(os.getenv("OPENAI_API_KEY"))
-    if not has_key:
-        st.warning(
-            "Set OPENAI_API_KEY in a local .env file to enable the LLM agent. The deterministic engine, "
-            "SQL storage, REST integration and document retrieval work without it."
-        )
-    if col_b.button("Ask copilot", use_container_width=True, disabled=not has_key):
-        if not validation.valid:
-            st.error("Fix the critical portfolio validation errors before asking for a portfolio recommendation.")
+    ai_authorised = not HOSTED_DEMO
+    if HOSTED_DEMO:
+        if not has_key or not AI_DEMO_PASSWORD:
+            st.info("Hosted AI Copilot is disabled until the owner configures restricted access.")
+        elif not st.session_state.get("ai_demo_authorised", False):
+            with st.form("copilot_unlock"):
+                password = st.text_input("Reviewer access code", type="password")
+                unlock = st.form_submit_button("Unlock AI Copilot")
+            if unlock:
+                if hmac.compare_digest(password, AI_DEMO_PASSWORD):
+                    st.session_state["ai_demo_authorised"] = True
+                    st.success("AI Copilot unlocked for this browser session.")
+                    st.rerun()
+                else:
+                    st.error("Invalid access code.")
         else:
-            with st.spinner("Copilot is selecting and executing trusted tools..."):
-                runtime = ToolRuntime(portfolio=portfolio_enriched, retriever=retriever)
-                agent = CopilotAgent(runtime)
-                response = agent.ask(q)
-            st.markdown("### Answer")
-            st.write(response["answer"])
-            with st.expander("Tool trace — what the agent actually called"):
-                st.json(response["tool_trace"])
+            ai_authorised = True
+            if st.button("Lock AI Copilot"):
+                st.session_state["ai_demo_authorised"] = False
+                st.rerun()
+            st.caption(
+                f"AI requests this session: {st.session_state.get('ai_demo_requests', 0)}"
+                f"/{AI_DEMO_SESSION_LIMIT}. Hosted demo usage is limited."
+            )
+    elif not has_key:
+        st.warning(
+            "Set OPENAI_API_KEY in your local .env file to enable the LLM agent. "
+            "Portfolio optimisation, REST integration and document retrieval work without it."
+        )
+
+    can_ask = has_key and ai_authorised and (
+        not HOSTED_DEMO or st.session_state.get("ai_demo_requests", 0) < AI_DEMO_SESSION_LIMIT
+    )
+    if col_b.button("Ask copilot", use_container_width=True, disabled=not can_ask):
+        if not validation.valid:
+            st.error("Fix critical portfolio validation errors before asking for a recommendation.")
+        elif HOSTED_DEMO and len(q) > 600:
+            st.error("Hosted demo questions must be 600 characters or fewer.")
+        else:
+            allowed = True
+            if HOSTED_DEMO:
+                counter = demo_usage_counter()
+                with counter["lock"]:
+                    if counter["count"] >= AI_DEMO_GLOBAL_LIMIT:
+                        allowed = False
+                    else:
+                        counter["count"] += 1
+                        st.session_state["ai_demo_requests"] = st.session_state.get("ai_demo_requests", 0) + 1
+            if not allowed:
+                st.error("The hosted AI demonstration's request allowance has been reached.")
+            else:
+                try:
+                    with st.spinner("Copilot is selecting and executing trusted tools..."):
+                        runtime = ToolRuntime(portfolio=portfolio_enriched, retriever=retriever)
+                        agent = CopilotAgent(runtime)
+                        response = agent.ask(q, max_rounds=3 if HOSTED_DEMO else 6)
+                    st.markdown("### Answer")
+                    st.write(response["answer"])
+                    with st.expander("Tool trace — what the agent actually called"):
+                        st.json(response["tool_trace"])
+                except Exception:
+                    st.error("The AI request failed. Please try again later.")
 
 with tab_impact:
     st.subheader("Asset condition → investment impact")

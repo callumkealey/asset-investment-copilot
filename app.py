@@ -15,8 +15,6 @@ from src.data_loader import load_assets, load_portfolio
 from src.database import initialise_database
 from src.eam_client import (
     fetch_assets,
-    reset_assets,
-    update_asset_condition,
 )
 from src.optimiser import optimise_portfolio
 from src.retrieval import build_retriever
@@ -40,7 +38,7 @@ def demo_usage_counter():
 st.set_page_config(page_title="AI Asset Investment Planning Copilot", layout="wide")
 st.title("AI Asset Investment Planning Copilot")
 st.caption(
-    "Synthetic forward-deployed prototype: validate portfolio data, optimise constrained capital scenarios, "
+    "Synthetic asset investment prototype: validate portfolio data, optimise constrained capital scenarios, "
     "integrate asset condition and interrogate the result with a tool-calling copilot."
 )
 
@@ -51,7 +49,7 @@ def get_retriever():
 
 
 # ----- Sidebar: customer inputs -----
-st.sidebar.header("Customer scenario")
+st.sidebar.header("Scenario settings")
 data_mode = st.sidebar.radio("Portfolio data", ["Clean demo", "Dirty data test"], index=0)
 budget_m = st.sidebar.slider("Capital budget (£m)", min_value=100, max_value=600, value=250, step=10)
 scenario = st.sidebar.selectbox("Strategic scenario", scenario_names(), index=0)
@@ -81,7 +79,7 @@ if not validation.valid:
 
 # ----- Overview -----
 tab_portfolio, tab_quality, tab_change, tab_impact, tab_copilot, tab_architecture = st.tabs(
-    ["Portfolio", "Data quality", "FDE change request", "Asset impact", "Copilot", "Architecture"]
+    ["Portfolio", "Data quality", "Integration case study", "Asset impact", "Copilot", "Architecture"]
 )
 
 with tab_portfolio:
@@ -148,228 +146,130 @@ with tab_quality:
     )
 
 with tab_change:
-    st.subheader("Customer feedback → missing capability")
+    st.subheader("Integration case study — hypothetical requirement")
 
     st.markdown(
         """
-**Initial prototype limitation:** asset condition was assumed to be supplied in the portfolio extract.
+**Starting limitation:** The first prototype treated asset condition as part of a portfolio extract.
 
-**Hypothetical customer feedback:** *“Our asset condition changes regularly and lives in our enterprise asset-management system. We do not want planners maintaining another spreadsheet.”*
+**Hypothetical requirement:** *“Asset condition changes regularly and is maintained in an enterprise asset-management system. Investment planners should not have to maintain a duplicate spreadsheet.”*
 
-**FDE response:** add an authenticated REST integration, reconcile `asset_id` across systems, surface exceptions and feed current condition into the deterministic investment model.
+**Implemented extension:** A mock authenticated REST API supplies asset records; the application reconciles `asset_id`, reports data-quality exceptions and incorporates condition into deterministic project scoring and capital allocation.
+
+This is a **self-directed design exercise**, not evidence of a real customer engagement or live enterprise deployment.
         """
     )
 
-    st.write(f"**Current integration status:** {eam_status}")
+    st.write(f"**Mock EAM integration status:** {eam_status}")
+    st.info(
+        "The comparison below is read-only: it uses copies of checked-in synthetic "
+        "asset data and does not send updates to the mock EAM API."
+    )
 
-    if "demo_message" in st.session_state:
-        st.success(st.session_state.pop("demo_message"))
-
-    if HOSTED_DEMO:
-        st.info("Hosted demo is read-only. Use the Asset impact tab for in-memory what-if scenarios.")
+    if not validation.valid:
+        st.error("Fix portfolio data-quality errors before comparing investment outcomes.")
     else:
-        col_reset, col_inspection = st.columns(2)
+        reference_assets = pd.read_csv(ROOT / "data" / "assets_seed.csv")
+        a133_mask = reference_assets["asset_id"].astype(str).eq("A133")
 
-        with col_reset:
-            if st.button(
-                "Reset demo to baseline",
-                key="reset_eam_demo",
-                use_container_width=True,
-            ):
-                try:
-                    reset_response = reset_assets()
+        if a133_mask.sum() != 1 or int(reference_assets.loc[a133_mask, "condition_score"].iloc[0]) != 8:
+            st.error("The reference asset data must contain one A133 record with condition 8.")
+        else:
+            what_if_assets = reference_assets.copy(deep=True)
+            what_if_assets.loc[a133_mask, "condition_score"] = 5
 
-                    st.session_state["demo_message"] = (
-                        f"EAM baseline restored: "
-                        f"{reset_response['records_restored']} asset records."
-                    )
+            reference_scored = score_portfolio(
+                enrich_with_assets(portfolio, reference_assets), scenario
+            )
+            what_if_scored = score_portfolio(
+                enrich_with_assets(portfolio, what_if_assets), scenario
+            )
+            reference_result = optimise_portfolio(reference_scored, budget_m)
+            what_if_result = optimise_portfolio(what_if_scored, budget_m)
 
-                    st.rerun()
+            reference_rows = reference_scored.set_index("project_id")
+            what_if_rows = what_if_scored.set_index("project_id")
+            reference_funded = set(reference_result["funded"]["project_id"])
+            what_if_funded = set(what_if_result["funded"]["project_id"])
 
-                except Exception as exc:
-                    st.error(f"Could not reset the EAM demo: {exc}")
+            st.markdown("#### Controlled condition change: A133 8 → 5")
+            st.caption(
+                f"Selected scenario: {scenario} | Budget: £{budget_m}m. "
+                "Only the A133 condition value differs; all other synthetic inputs stay fixed."
+            )
 
-        with col_inspection:
-            if st.button(
-                "Simulate inspection: A133 condition 8 → 5",
-                key="simulate_a133_deterioration",
-                use_container_width=True,
-            ):
-                try:
-                    update_response = update_asset_condition(
-                        asset_id="A133",
-                        condition_score=5,
-                        inspection_date="2026-10-28",
-                    )
+            before_col, after_col = st.columns(2)
+            with before_col:
+                st.markdown("**Reference state — condition 8**")
+                st.metric(
+                    "A133 investment need",
+                    f"{float(reference_rows.at['P033', 'asset_condition_need']):g} / 10",
+                )
+                st.write(f"P033 West SCADA: **{'FUNDED' if 'P033' in reference_funded else 'DEFERRED'}**")
+                st.write(f"P022 East Protection: **{'FUNDED' if 'P022' in reference_funded else 'DEFERRED'}**")
+                st.metric("Allocated capital", f"£{reference_result['funded_capex_m']:.1f}m")
+                st.metric("Portfolio objective", f"{reference_result['portfolio_score']:.3f}")
 
-                    st.session_state["demo_message"] = (
-                        "New inspection recorded for A133: "
-                        f"condition {update_response['previous_condition_score']} "
-                        f"→ {update_response['condition_score']}."
-                    )
+            with after_col:
+                st.markdown("**Simulated state — condition 5**")
+                st.metric(
+                    "A133 investment need",
+                    f"{float(what_if_rows.at['P033', 'asset_condition_need']):g} / 10",
+                )
+                st.write(f"P033 West SCADA: **{'FUNDED' if 'P033' in what_if_funded else 'DEFERRED'}**")
+                st.write(f"P022 East Protection: **{'FUNDED' if 'P022' in what_if_funded else 'DEFERRED'}**")
+                st.metric("Allocated capital", f"£{what_if_result['funded_capex_m']:.1f}m")
+                st.metric("Portfolio objective", f"{what_if_result['portfolio_score']:.3f}")
 
-                    st.rerun()
+            entered = sorted(what_if_funded - reference_funded)
+            left = sorted(reference_funded - what_if_funded)
+            if entered or left:
+                st.success(
+                    f"Funding decisions changed. Entered: {', '.join(entered) or 'none'}. "
+                    f"Deferred: {', '.join(left) or 'none'}."
+                )
+            else:
+                st.info(
+                    "Asset need changed, but no funding decisions changed under the selected "
+                    "budget and scenario. Select Balanced and £250m to reproduce the "
+                    "P022 → P033 switch."
+                )
 
-                except Exception as exc:
-                    st.error(f"Could not update the EAM asset: {exc}")
+            st.caption(
+                "Allocated capital is not a realised saving or benefit; the portfolio objective "
+                "is a synthetic priority-score sum, not a financial return."
+            )
 
     if validation.valid and use_eam and assets is not None:
-        seed_assets = pd.read_csv(
-            ROOT / "data" / "assets_seed.csv"
+        st.markdown("#### Effect of including the current EAM asset feed")
+        st.caption(
+            "Separate from the controlled 8 → 5 test above: this table compares "
+            "project rankings without asset integration against rankings using the "
+            f"current asset feed ({eam_status})."
         )
-
-        baseline_enriched = enrich_with_assets(
-            portfolio,
-            seed_assets,
-        )
-
-        baseline_scored = score_portfolio(
-            baseline_enriched,
-            scenario,
-        )
-
-        baseline_result = optimise_portfolio(
-            baseline_scored,
-            budget_m,
-        )
-
-        live_scored = score_portfolio(
-            portfolio_enriched,
-            scenario,
-        )
-
-        live_result = optimise_portfolio(
-            live_scored,
-            budget_m,
-        )
-
-        baseline_funded = set(
-            baseline_result["funded"]["project_name"]
-        )
-
-        live_funded = set(
-            live_result["funded"]["project_name"]
-        )
-
-        west_scada = "West SCADA / Control Upgrade 33"
-        east_protection = "East Protection System Modernisation 22"
-
-        def funding_status(project_name, funded_projects):
-            if project_name in funded_projects:
-                return "FUNDED"
-            return "DEFERRED"
-
-        baseline_a133 = baseline_scored.loc[
-            baseline_scored["project_name"] == west_scada,
-            "asset_condition_need",
-        ].iloc[0]
-
-        current_a133 = live_scored.loc[
-            live_scored["project_name"] == west_scada,
-            "asset_condition_need",
-        ].iloc[0]
-
-        st.subheader("Customer change → investment decision")
-
-        d1, d2 = st.columns(2)
-
-        with d1:
-            st.markdown("**Baseline programme**")
-
-            st.metric(
-                "A133 investment need",
-                f"{baseline_a133:g} / 10",
-            )
-
-            st.write(
-                f"West SCADA 33: "
-                f"**{funding_status(west_scada, baseline_funded)}**"
-            )
-
-            st.write(
-                f"East Protection 22: "
-                f"**{funding_status(east_protection, baseline_funded)}**"
-            )
-
-        with d2:
-            st.markdown("**Current EAM programme**")
-
-            st.metric(
-                "A133 investment need",
-                f"{current_a133:g} / 10",
-                delta=f"{current_a133 - baseline_a133:+g}",
-                delta_color="inverse",
-            )
-
-            st.write(
-                f"West SCADA 33: "
-                f"**{funding_status(west_scada, live_funded)}**"
-            )
-
-            st.write(
-                f"East Protection 22: "
-                f"**{funding_status(east_protection, live_funded)}**"
-            )
-
-    if validation.valid:
-        base = enrich_with_assets(
-            portfolio,
-            None,
-        )
-
-        base_scored = score_portfolio(
-            base,
-            scenario,
+        no_feed_scored = score_portfolio(
+            enrich_with_assets(portfolio, None), scenario
         ).set_index("project_id")
-
         integrated_scored = score_portfolio(
-            portfolio_enriched,
-            scenario,
+            portfolio_enriched, scenario
         ).set_index("project_id")
-
-        change = pd.DataFrame(
+        ranking_change = pd.DataFrame(
             {
-                "rank_before_eam": base_scored["rank"],
-                "rank_after_eam": integrated_scored["rank"],
-                "score_before_eam": base_scored["priority_score"],
-                "score_after_eam": integrated_scored["priority_score"],
+                "rank_without_eam": no_feed_scored["rank"],
+                "rank_with_eam": integrated_scored["rank"],
+                "score_without_eam": no_feed_scored["priority_score"],
+                "score_with_eam": integrated_scored["priority_score"],
             }
         )
-
-        change["rank_change"] = (
-            change["rank_before_eam"]
-            - change["rank_after_eam"]
+        ranking_change["rank_change"] = (
+            ranking_change["rank_without_eam"] - ranking_change["rank_with_eam"]
         )
-
-        change = change.join(
-            integrated_scored[
-                [
-                    "project_name",
-                    "asset_data_status",
-                ]
-            ]
-        )
-
-        change = change.sort_values(
-            "rank_change",
-            key=lambda s: s.abs(),
-            ascending=False,
-        )
-
-        st.subheader(
-            "Largest ranking changes after asset-condition integration"
-        )
-
-        st.dataframe(
-            change.head(12),
-            use_container_width=True,
-        )
-
-    st.markdown(
-        """
-**Why this matters:** the extension demonstrates the FDE pattern of proving an initial hypothesis quickly, discovering a customer-specific gap, integrating another system and then evaluating whether the additional capability changes the decision.
-        """
-    )
+        ranking_change = ranking_change.join(
+            integrated_scored[["project_name", "asset_data_status"]]
+        ).sort_values("rank_change", key=lambda s: s.abs(), ascending=False)
+        st.dataframe(ranking_change.head(12), use_container_width=True)
+    elif not use_eam:
+        st.info("Enable mock EAM integration in the sidebar to inspect the current asset feed.")
 
 with tab_copilot:
     st.subheader("Tool-calling decision support")

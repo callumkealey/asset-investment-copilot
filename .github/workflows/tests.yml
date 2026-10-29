@@ -28,5 +28,8 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
 
+      - name: Check application syntax
+        run: python -m compileall -q app.py api src scripts tests
+
       - name: Run automated tests
         run: python -m pytest -q

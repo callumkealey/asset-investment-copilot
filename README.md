@@ -4,6 +4,18 @@
 
 **From operational asset condition to a defensible capital-investment decision.**
 
+## Live hosted demonstration
+
+**[Launch the interactive application](https://asset-investment-copilot.streamlit.app/)** · [Source code and setup instructions](https://github.com/callumkealey/asset-investment-copilot)
+
+The hosted Streamlit interface connects over HTTPS to a separately deployed **FastAPI mock enterprise asset-management (EAM) service** on Render. Reviewers can explore a synthetic portfolio, compare capital-allocation scenarios, test data-quality controls and use the **Asset impact** tab to see how changing asset A133's condition from 8 to 5 affects funding at a £250m Balanced budget. The what-if calculation runs in memory and does not alter the EAM records.
+
+The **AI Copilot** is available to authorised reviewers with a separately supplied access code. It uses OpenAI tool calling to retrieve information and execute trusted portfolio tools; supporting document search is available without AI access. Please request the access code privately—**no API keys or passwords are published in this repository**.
+
+The hosted API operates in read-only demo mode, while local development retains controlled mutation/reset capabilities. The demonstration has been checked in a normal browser, a private browsing session and on another laptop. It remains an **independent prototype using synthetic data**, not an IFS/Copperleaf customer implementation, enterprise production deployment or a validated real-world investment methodology. Hosted service startup delays and usage limits may apply.
+
+
+
 A self-directed, synthetic technical project exploring how an asset-intensive organisation could use operational asset data to inform capital-investment decisions. It combines an investment portfolio, an external asset-management feed, deterministic prioritisation, budget-constrained optimisation, document retrieval and a tool-calling AI copilot in one Streamlit application. The implementation takes inspiration from forward-deployed engineering: start with a concrete decision, build a working vertical slice, then test how new operational data affects the outcome.
 
 The central question is: **if the condition of an operational asset changes, does the investment plan change—and can we explain why?**

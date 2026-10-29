@@ -25,6 +25,7 @@ from src.validation import validate_asset_reconciliation, validate_portfolio
 
 load_dotenv()
 ROOT = Path(__file__).resolve().parent
+HOSTED_DEMO = os.getenv("HOSTED_DEMO_MODE", "false").lower() == "true"
 
 st.set_page_config(page_title="AI Asset Investment Planning Copilot", layout="wide")
 st.title("AI Asset Investment Planning Copilot")
@@ -154,50 +155,53 @@ with tab_change:
     if "demo_message" in st.session_state:
         st.success(st.session_state.pop("demo_message"))
 
-    col_reset, col_inspection = st.columns(2)
+    if HOSTED_DEMO:
+        st.info("Hosted demo is read-only. Use the Asset impact tab for in-memory what-if scenarios.")
+    else:
+        col_reset, col_inspection = st.columns(2)
 
-    with col_reset:
-        if st.button(
-            "Reset demo to baseline",
-            key="reset_eam_demo",
-            use_container_width=True,
-        ):
-            try:
-                reset_response = reset_assets()
+        with col_reset:
+            if st.button(
+                "Reset demo to baseline",
+                key="reset_eam_demo",
+                use_container_width=True,
+            ):
+                try:
+                    reset_response = reset_assets()
 
-                st.session_state["demo_message"] = (
-                    f"EAM baseline restored: "
-                    f"{reset_response['records_restored']} asset records."
-                )
+                    st.session_state["demo_message"] = (
+                        f"EAM baseline restored: "
+                        f"{reset_response['records_restored']} asset records."
+                    )
 
-                st.rerun()
+                    st.rerun()
 
-            except Exception as exc:
-                st.error(f"Could not reset the EAM demo: {exc}")
+                except Exception as exc:
+                    st.error(f"Could not reset the EAM demo: {exc}")
 
-    with col_inspection:
-        if st.button(
-            "Simulate inspection: A133 condition 8 → 5",
-            key="simulate_a133_deterioration",
-            use_container_width=True,
-        ):
-            try:
-                update_response = update_asset_condition(
-                    asset_id="A133",
-                    condition_score=5,
-                    inspection_date="2026-10-28",
-                )
+        with col_inspection:
+            if st.button(
+                "Simulate inspection: A133 condition 8 → 5",
+                key="simulate_a133_deterioration",
+                use_container_width=True,
+            ):
+                try:
+                    update_response = update_asset_condition(
+                        asset_id="A133",
+                        condition_score=5,
+                        inspection_date="2026-10-28",
+                    )
 
-                st.session_state["demo_message"] = (
-                    "New inspection recorded for A133: "
-                    f"condition {update_response['previous_condition_score']} "
-                    f"→ {update_response['condition_score']}."
-                )
+                    st.session_state["demo_message"] = (
+                        "New inspection recorded for A133: "
+                        f"condition {update_response['previous_condition_score']} "
+                        f"→ {update_response['condition_score']}."
+                    )
 
-                st.rerun()
+                    st.rerun()
 
-            except Exception as exc:
-                st.error(f"Could not update the EAM asset: {exc}")
+                except Exception as exc:
+                    st.error(f"Could not update the EAM asset: {exc}")
 
     if validation.valid and use_eam and assets is not None:
         seed_assets = pd.read_csv(

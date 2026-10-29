@@ -238,7 +238,7 @@ For full outputs, see the generated CSV and Markdown report, and `docs/sensitivi
 
 ## Screenshot
 
-Once you have captured the final Streamlit interface, save a genuine screenshot at `docs/Images/asset-impact.png`. This README uses a relative link so the image displays on GitHub:
+The screenshot below was captured from the running Streamlit application and local mock EAM service using browser automation and checked-in synthetic data. It shows the £250m Balanced scenario with the West-region control system's condition simulated from 8 to 5. The capture script is `scripts/capture_asset_impact.py`.
 
 ![Asset Impact — before/after synthetic funding decision](docs/Images/asset-impact.png)
 
@@ -320,7 +320,7 @@ See `docs/productionisation.md` for the fuller production-gap assessment.
 ├── docs/
 │   ├── customer_change_request.md
 │   ├── sensitivity_analysis.md
-│   ├── images/asset-impact.png     # Genuine screenshot of synthetic what-if UI
+│   ├── Images/asset-impact.png     # Genuine screenshot of synthetic what-if UI
 │   ├── productionisation.md
 │   └── ...
 ├── requirements.txt

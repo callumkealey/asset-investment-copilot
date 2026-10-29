@@ -10,7 +10,10 @@ from pydantic import BaseModel, Field
 ROOT = Path(__file__).resolve().parents[1]
 ASSET_PATH = ROOT / "data" / "assets.csv"
 SEED_PATH = ROOT / "data" / "assets_seed.csv"
+HOSTED_DEMO = os.getenv("HOSTED_DEMO_MODE", "false").lower() == "true"
 API_KEY = os.getenv("EAM_API_KEY", "demo-secret-key")
+if HOSTED_DEMO and (not API_KEY or API_KEY == "demo-secret-key"):
+    raise RuntimeError("Hosted demo requires a non-default EAM_API_KEY")
 
 app = FastAPI(
     title="Mock Enterprise Asset Management API",
@@ -69,6 +72,8 @@ def update_asset_condition(
     update: ConditionUpdate,
     x_api_key: str | None = Header(default=None),
 ) -> dict:
+    if HOSTED_DEMO:
+        raise HTTPException(status_code=403, detail="Writes disabled in hosted demo")
     _authorise(x_api_key)
 
     df = pd.read_csv(ASSET_PATH)
@@ -118,6 +123,8 @@ def update_asset_condition(
 def reset_assets(
     x_api_key: str | None = Header(default=None),
 ) -> dict:
+    if HOSTED_DEMO:
+        raise HTTPException(status_code=403, detail="Reset disabled in hosted demo")
     _authorise(x_api_key)
 
     seed_df = pd.read_csv(SEED_PATH)

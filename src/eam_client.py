@@ -5,10 +5,14 @@ import requests
 import pandas as pd
 
 DEFAULT_BASE_URL = os.getenv("EAM_API_URL", "http://127.0.0.1:8001")
+HOSTED_DEMO = os.getenv("HOSTED_DEMO_MODE", "false").lower() == "true"
 DEFAULT_API_KEY = os.getenv("EAM_API_KEY", "demo-secret-key")
+DEFAULT_TIMEOUT = 60.0 if HOSTED_DEMO else 5.0
+if HOSTED_DEMO and (not DEFAULT_API_KEY or DEFAULT_API_KEY == "demo-secret-key"):
+    raise RuntimeError("Hosted demo requires a non-default EAM_API_KEY")
 
 
-def fetch_assets(base_url: str = DEFAULT_BASE_URL, api_key: str = DEFAULT_API_KEY, timeout: float = 2.0) -> pd.DataFrame:
+def fetch_assets(base_url: str = DEFAULT_BASE_URL, api_key: str = DEFAULT_API_KEY, timeout: float = DEFAULT_TIMEOUT) -> pd.DataFrame:
     response = requests.get(
         f"{base_url.rstrip('/')}/assets",
         headers={"X-API-Key": api_key},

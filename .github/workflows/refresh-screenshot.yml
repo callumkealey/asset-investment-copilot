@@ -1,0 +1,65 @@
+name: Refresh Asset impact screenshot
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/refresh-screenshot.yml
+      - scripts/capture_asset_impact.py
+
+permissions:
+  contents: write
+
+jobs:
+  screenshot:
+    name: Capture real Streamlit UI
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out project
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install application and browser dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt playwright
+          python -m playwright install --with-deps chromium
+
+      - name: Start local mock API and Streamlit
+        env:
+          HOSTED_DEMO_MODE: "true"
+          OPENAI_API_KEY: ""
+          EAM_API_URL: "http://127.0.0.1:8001"
+          EAM_API_KEY: "demo-secret-key"
+        run: |
+          python -m uvicorn api.mock_eam:app --host 127.0.0.1 --port 8001 > /tmp/eam.log 2>&1 &
+          python -m streamlit run app.py --server.headless true --server.address 127.0.0.1 --server.port 8501 > /tmp/streamlit.log 2>&1 &
+          curl --fail --retry 40 --retry-delay 2 --retry-connrefused http://127.0.0.1:8001/health
+          curl --fail --retry 40 --retry-delay 2 --retry-connrefused http://127.0.0.1:8501/_stcore/health
+
+      - name: Capture simulated funding change
+        run: python scripts/capture_asset_impact.py
+
+      - name: Commit refreshed screenshot
+        run: |
+          git add docs/Images/asset-impact.png
+          if ! git diff --cached --quiet; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git commit -m "Refresh portfolio screenshot from current Streamlit app"
+            git push origin HEAD:main
+          else
+            echo "Screenshot unchanged."
+          fi
+
+      - name: Print diagnostics if capture fails
+        if: failure()
+        run: |
+          cat /tmp/eam.log || true
+          cat /tmp/streamlit.log || true

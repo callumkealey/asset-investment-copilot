@@ -78,8 +78,8 @@ if not validation.valid:
     st.error("The portfolio contains critical data-quality issues. Investment optimisation is intentionally blocked until they are resolved.")
 
 # ----- Overview -----
-tab_portfolio, tab_quality, tab_change, tab_impact, tab_copilot, tab_architecture = st.tabs(
-    ["Portfolio", "Data quality", "Integration case study", "Asset impact", "Copilot", "Architecture"]
+tab_portfolio, tab_quality, tab_impact, tab_copilot, tab_architecture = st.tabs(
+    ["Portfolio", "Data quality", "Asset impact", "Copilot", "Architecture"]
 )
 
 with tab_portfolio:
@@ -144,132 +144,6 @@ with tab_quality:
         "The dirty-data mode deliberately contains a duplicate project ID, missing fields, a negative capex value "
         "and an out-of-range score. The app blocks optimisation rather than silently producing a recommendation."
     )
-
-with tab_change:
-    st.subheader("Integration case study — hypothetical requirement")
-
-    st.markdown(
-        """
-**Starting limitation:** The first prototype treated asset condition as part of a portfolio extract.
-
-**Hypothetical requirement:** *“Asset condition changes regularly and is maintained in an enterprise asset-management system. Investment planners should not have to maintain a duplicate spreadsheet.”*
-
-**Implemented extension:** A mock authenticated REST API supplies asset records; the application reconciles `asset_id`, reports data-quality exceptions and incorporates condition into deterministic project scoring and capital allocation.
-
-This is a **self-directed design exercise**, not evidence of a real customer engagement or live enterprise deployment.
-        """
-    )
-
-    st.write(f"**Mock EAM integration status:** {eam_status}")
-    st.info(
-        "The comparison below is read-only: it uses copies of checked-in synthetic "
-        "asset data and does not send updates to the mock EAM API."
-    )
-
-    if not validation.valid:
-        st.error("Fix portfolio data-quality errors before comparing investment outcomes.")
-    else:
-        reference_assets = pd.read_csv(ROOT / "data" / "assets_seed.csv")
-        a133_mask = reference_assets["asset_id"].astype(str).eq("A133")
-
-        if a133_mask.sum() != 1 or int(reference_assets.loc[a133_mask, "condition_score"].iloc[0]) != 8:
-            st.error("The reference asset data must contain one A133 record with condition 8.")
-        else:
-            what_if_assets = reference_assets.copy(deep=True)
-            what_if_assets.loc[a133_mask, "condition_score"] = 5
-
-            reference_scored = score_portfolio(
-                enrich_with_assets(portfolio, reference_assets), scenario
-            )
-            what_if_scored = score_portfolio(
-                enrich_with_assets(portfolio, what_if_assets), scenario
-            )
-            reference_result = optimise_portfolio(reference_scored, budget_m)
-            what_if_result = optimise_portfolio(what_if_scored, budget_m)
-
-            reference_rows = reference_scored.set_index("project_id")
-            what_if_rows = what_if_scored.set_index("project_id")
-            reference_funded = set(reference_result["funded"]["project_id"])
-            what_if_funded = set(what_if_result["funded"]["project_id"])
-
-            st.markdown("#### Controlled condition change: A133 8 → 5")
-            st.caption(
-                f"Selected scenario: {scenario} | Budget: £{budget_m}m. "
-                "Only the A133 condition value differs; all other synthetic inputs stay fixed."
-            )
-
-            before_col, after_col = st.columns(2)
-            with before_col:
-                st.markdown("**Reference state — condition 8**")
-                st.metric(
-                    "A133 investment need",
-                    f"{float(reference_rows.at['P033', 'asset_condition_need']):g} / 10",
-                )
-                st.write(f"P033 West SCADA: **{'FUNDED' if 'P033' in reference_funded else 'DEFERRED'}**")
-                st.write(f"P022 East Protection: **{'FUNDED' if 'P022' in reference_funded else 'DEFERRED'}**")
-                st.metric("Allocated capital", f"£{reference_result['funded_capex_m']:.1f}m")
-                st.metric("Portfolio objective", f"{reference_result['portfolio_score']:.3f}")
-
-            with after_col:
-                st.markdown("**Simulated state — condition 5**")
-                st.metric(
-                    "A133 investment need",
-                    f"{float(what_if_rows.at['P033', 'asset_condition_need']):g} / 10",
-                )
-                st.write(f"P033 West SCADA: **{'FUNDED' if 'P033' in what_if_funded else 'DEFERRED'}**")
-                st.write(f"P022 East Protection: **{'FUNDED' if 'P022' in what_if_funded else 'DEFERRED'}**")
-                st.metric("Allocated capital", f"£{what_if_result['funded_capex_m']:.1f}m")
-                st.metric("Portfolio objective", f"{what_if_result['portfolio_score']:.3f}")
-
-            entered = sorted(what_if_funded - reference_funded)
-            left = sorted(reference_funded - what_if_funded)
-            if entered or left:
-                st.success(
-                    f"Funding decisions changed. Entered: {', '.join(entered) or 'none'}. "
-                    f"Deferred: {', '.join(left) or 'none'}."
-                )
-            else:
-                st.info(
-                    "Asset need changed, but no funding decisions changed under the selected "
-                    "budget and scenario. Select Balanced and £250m to reproduce the "
-                    "P022 → P033 switch."
-                )
-
-            st.caption(
-                "Allocated capital is not a realised saving or benefit; the portfolio objective "
-                "is a synthetic priority-score sum, not a financial return."
-            )
-
-    if validation.valid and use_eam and assets is not None:
-        st.markdown("#### Effect of including the current EAM asset feed")
-        st.caption(
-            "Separate from the controlled 8 → 5 test above: this table compares "
-            "project rankings without asset integration against rankings using the "
-            f"current asset feed ({eam_status})."
-        )
-        no_feed_scored = score_portfolio(
-            enrich_with_assets(portfolio, None), scenario
-        ).set_index("project_id")
-        integrated_scored = score_portfolio(
-            portfolio_enriched, scenario
-        ).set_index("project_id")
-        ranking_change = pd.DataFrame(
-            {
-                "rank_without_eam": no_feed_scored["rank"],
-                "rank_with_eam": integrated_scored["rank"],
-                "score_without_eam": no_feed_scored["priority_score"],
-                "score_with_eam": integrated_scored["priority_score"],
-            }
-        )
-        ranking_change["rank_change"] = (
-            ranking_change["rank_without_eam"] - ranking_change["rank_with_eam"]
-        )
-        ranking_change = ranking_change.join(
-            integrated_scored[["project_name", "asset_data_status"]]
-        ).sort_values("rank_change", key=lambda s: s.abs(), ascending=False)
-        st.dataframe(ranking_change.head(12), use_container_width=True)
-    elif not use_eam:
-        st.info("Enable mock EAM integration in the sidebar to inspect the current asset feed.")
 
 with tab_copilot:
     st.subheader("Tool-calling decision support")
@@ -356,10 +230,15 @@ with tab_copilot:
 
 with tab_impact:
     st.subheader("Asset condition → investment impact")
+    st.markdown(
+        "An independent, synthetic case study: a hypothetical requirement to use "
+        "current asset condition from an enterprise asset-management system, "
+        "rather than maintain duplicate values in a portfolio spreadsheet."
+    )
     st.caption(
-    "What-if simulation: asset conditions are modified in memory. "
-    "No changes are sent to the EAM system of record."
-)
+        "Explore how changing one asset condition affects prioritisation and funding. "
+        "All what-if calculations use in-memory data; no asset changes are sent to the EAM API."
+    )
 
     if not validation.valid:
         st.error("Fix portfolio data-quality errors before comparing scenarios.")
@@ -395,21 +274,23 @@ with tab_impact:
                 baseline_result = optimise_portfolio(baseline_scored, budget_m)
                 simulated_result = optimise_portfolio(simulated_scored, budget_m)
 
+                before_ids = set(baseline_result["funded"]["project_id"])
+                after_ids = set(simulated_result["funded"]["project_id"])
+                before_scores = baseline_scored.set_index("project_id")
+                after_scores = simulated_scored.set_index("project_id")
+
                 left, right = st.columns(2)
                 with left:
                     st.markdown("**Current asset data**")
+                    st.metric("A133 investment need", f"{float(before_scores.at['P033', 'asset_condition_need']):g} / 10")
                     st.metric("Funded capital", f"£{baseline_result['funded_capex_m']:.1f}m")
                     st.metric("Portfolio score", f"{baseline_result['portfolio_score']:.3f}")
 
                 with right:
                     st.markdown("**Simulated asset condition**")
+                    st.metric("A133 investment need", f"{float(after_scores.at['P033', 'asset_condition_need']):g} / 10")
                     st.metric("Funded capital", f"£{simulated_result['funded_capex_m']:.1f}m")
                     st.metric("Portfolio score", f"{simulated_result['portfolio_score']:.3f}")
-
-                before_ids = set(baseline_result["funded"]["project_id"])
-                after_ids = set(simulated_result["funded"]["project_id"])
-                before_scores = baseline_scored.set_index("project_id")
-                after_scores = simulated_scored.set_index("project_id")
 
                 changes = []
                 for project_id in sorted(before_ids ^ after_ids):
@@ -427,12 +308,58 @@ with tab_impact:
                 if changes:
                     st.dataframe(pd.DataFrame(changes), hide_index=True, use_container_width=True)
                 else:
-                    st.info("No funding decisions changed under these inputs.")
+                    st.info(
+                        "No funding decisions changed under the selected budget and strategy. "
+                        "The asset's score can change without altering the funded portfolio; "
+                        "try Balanced and £250m with current condition 8 and simulated condition 5."
+                    )
 
                 st.caption(
                     "Only the simulated asset DataFrame is modified; "
                     "the EAM system of record is unchanged."
                 )
+
+    with st.expander("Integration rationale and ranking diagnostics"):
+        st.markdown(
+            """
+**Hypothetical requirement:** Asset condition is maintained in an enterprise asset-management (EAM) system and changes over time. Planners should not need to maintain a duplicate condition spreadsheet.
+
+**Implemented design:** A mock authenticated REST service, asset-ID reconciliation, validation of missing or stale records, and deterministic project scoring and portfolio optimisation. This is a self-directed technical demonstration, not a real customer engagement.
+
+**Interpretation:** The condition comparison above changes only an in-memory copy. The ranking table below addresses a different question: how using the *current* EAM feed changes project scores and ranks versus not integrating asset data. Neither result establishes realised financial savings or validated engineering risk.
+            """
+        )
+        st.write(f"**Mock EAM connection:** {eam_status}")
+
+        if validation.valid and use_eam and assets is not None:
+            scores_without_eam = score_portfolio(
+                enrich_with_assets(portfolio, None), scenario
+            ).set_index("project_id")
+            scores_with_eam = score_portfolio(
+                portfolio_enriched, scenario
+            ).set_index("project_id")
+
+            ranking_change = pd.DataFrame(
+                {
+                    "rank_without_eam": scores_without_eam["rank"],
+                    "rank_with_eam": scores_with_eam["rank"],
+                    "score_without_eam": scores_without_eam["priority_score"],
+                    "score_with_eam": scores_with_eam["priority_score"],
+                }
+            )
+            ranking_change["rank_change"] = (
+                ranking_change["rank_without_eam"] - ranking_change["rank_with_eam"]
+            )
+            ranking_change = ranking_change.join(
+                scores_with_eam[["project_name", "asset_data_status"]]
+            ).sort_values(
+                "rank_change", key=lambda values: values.abs(), ascending=False
+            )
+            st.dataframe(ranking_change.head(12), use_container_width=True)
+        elif not use_eam:
+            st.info("Enable mock EAM integration in the sidebar to see ranking diagnostics.")
+        else:
+            st.info("Choose valid portfolio data before comparing integration rankings.")
 
 with tab_architecture:
     st.subheader("Architecture and design choices")

@@ -39,6 +39,8 @@ The central question is: **if the condition of an operational asset changes, doe
 
 The reproducible demonstration uses **40 synthetic investment candidates**, the **Balanced** strategy and a **£250m** capital budget. A133 is a West-region control-system asset linked to **P033 — West SCADA / Control Upgrade 33**.
 
+**Identifier guide:** `A` identifies an operational **asset**, whereas `P` identifies a proposed **investment project**. **A133** is the West-region control system; **P033** is the West SCADA / Control Upgrade linked to that asset; **P022** is a separate East Protection System Modernisation project competing for the same funding. Lower asset condition scores mean poorer condition (1 = very poor, 10 = excellent); the modelled investment-need score increases as condition falls. The P022 decision changes because of the shared capital constraint, **not** because P022 is the same asset as A133.
+
 With the same portfolio, budget, scenario and inspection date, changing **only** A133's condition score from **8 to 5** changes P033's calculated priority and the optimiser's funding selection:
 
 | Measure | Baseline: A133 = 8 | What-if: A133 = 5 | Difference |

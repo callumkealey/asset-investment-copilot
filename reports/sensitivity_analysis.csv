@@ -1,0 +1,16 @@
+scenario,budget_m,a133_condition,funded_capex_m,remaining_budget_m,portfolio_score,funded_count,p033_funded,p022_funded,p033_priority_score,p022_priority_score,projects_newly_funded,projects_newly_deferred,funding_decisions_changed
+Balanced,200,8,199.8,0.2,76.65,13,False,False,5.85,6.225,,,0.0
+Balanced,200,7,199.8,0.2,76.65,13,False,False,6.0,6.225,,,0.0
+Balanced,200,6,199.8,0.2,76.65,13,False,False,6.15,6.225,,,0.0
+Balanced,200,5,199.8,0.2,76.65,13,False,False,6.3,6.225,,,0.0
+Balanced,200,4,199.8,0.2,76.65,13,False,False,6.45,6.225,,,0.0
+Balanced,250,8,249.9,0.1,93.825,16,False,True,5.85,6.225,,,0.0
+Balanced,250,7,249.9,0.1,93.825,16,False,True,6.0,6.225,,,0.0
+Balanced,250,6,249.9,0.1,93.825,16,False,True,6.15,6.225,,,0.0
+Balanced,250,5,243.2,6.8,93.9,16,True,False,6.3,6.225,P033,P022,2.0
+Balanced,250,4,243.2,6.8,94.05,16,True,False,6.45,6.225,P033,P022,2.0
+Balanced,300,8,297.7,2.3,109.375,19,True,True,5.85,6.225,,,0.0
+Balanced,300,7,297.7,2.3,109.525,19,True,True,6.0,6.225,,,0.0
+Balanced,300,6,297.7,2.3,109.675,19,True,True,6.15,6.225,,,0.0
+Balanced,300,5,297.7,2.3,109.825,19,True,True,6.3,6.225,,,0.0
+Balanced,300,4,297.7,2.3,109.975,19,True,True,6.45,6.225,,,0.0

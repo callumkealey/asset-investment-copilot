@@ -1,0 +1,40 @@
+asset_id,asset_type,condition_score,inspection_date,age_years,location,operational_criticality
+A101,Cable,2.0,2023-01-15,22,Central,5
+A102,Control System,9.0,2026-02-15,27,East,4
+A103,Substation,9.0,2026-03-15,42,West,10
+A104,Transformer,2.0,2026-04-15,36,Islands,9
+A105,Substation,7.0,2026-05-15,43,North,9
+A106,Transmission Line,8.0,2026-06-15,15,Central,3
+A107,Substation,3.0,2026-07-15,11,East,9
+A108,Transmission Line,4.0,2023-08-15,10,West,5
+A109,Cable,9.0,2026-09-15,12,Islands,9
+A110,Transformer,6.0,2026-10-15,40,North,5
+A111,Cable,8.0,2026-11-15,8,Central,3
+A112,Substation,2.0,2026-12-15,15,East,3
+A113,Protection,4.0,2026-01-15,22,West,7
+A114,Protection,3.0,2026-02-15,37,Islands,4
+A115,Transmission Line,2.0,2023-03-15,10,North,10
+A116,Substation,7.0,2026-04-15,25,Central,10
+A117,Substation,4.0,2026-05-15,12,East,4
+A118,Control System,7.0,2026-06-15,7,West,7
+A119,Substation,7.0,2026-07-15,15,Islands,4
+A120,Substation,3.0,2026-08-15,23,North,10
+A121,Transformer,7.0,2026-09-15,31,Central,3
+A122,Protection,,2023-10-15,30,East,4
+A123,Transmission Line,7.0,2026-11-15,12,West,4
+A124,Transmission Line,4.0,2026-12-15,40,Islands,7
+A125,Control System,3.0,2026-01-15,48,North,9
+A126,Protection,9.0,2026-02-15,41,Central,3
+A127,Cable,4.0,2026-03-15,4,East,4
+A128,Substation,3.0,2026-04-15,12,West,3
+A129,Substation,7.0,2023-05-15,11,Islands,10
+A130,Control System,6.0,2026-06-15,48,North,10
+A131,Cable,7.0,2026-07-15,28,Central,4
+A132,Transformer,2.0,2026-08-15,9,East,6
+A133,Control System,8.0,2026-09-15,16,West,9
+A135,Transmission Line,6.0,2026-11-15,42,North,9
+A136,Transformer,7.0,2023-12-15,29,Central,8
+A137,Cable,2.0,2026-01-15,15,East,5
+A138,Transmission Line,5.0,2026-02-15,7,West,6
+A139,Protection,6.0,2026-03-15,18,Islands,8
+A140,Transmission Line,5.0,2026-04-15,17,North,9

@@ -102,9 +102,10 @@ with tab_portfolio:
         m4.metric("Scenario runtime", f"{elapsed_ms:.0f} ms")
 
         st.subheader("Funded portfolio")
+        st.caption("ID guide: P-prefixed IDs identify proposed investment projects; A-prefixed IDs identify operational assets linked to those projects.")
         show_cols = [
-            "project_id", "project_name", "asset_type", "capex_m", "priority_score", "rank",
-            "mandatory", "asset_condition_need", "asset_data_status"
+            "project_name", "project_id", "asset_id", "asset_type", "capex_m",
+            "priority_score", "rank", "mandatory", "asset_condition_need", "asset_data_status"
         ]
         st.dataframe(result["funded"][[c for c in show_cols if c in result["funded"].columns]], use_container_width=True)
 
@@ -231,13 +232,20 @@ with tab_copilot:
 with tab_impact:
     st.subheader("Asset condition → investment impact")
     st.markdown(
-        "An independent, synthetic case study: a hypothetical requirement to use "
-        "current asset condition from an enterprise asset-management system, "
-        "rather than maintain duplicate values in a portfolio spreadsheet."
+        "This independent, synthetic case study integrates asset condition from a mock "
+        "enterprise asset-management system, avoiding a duplicate condition spreadsheet."
+    )
+    st.markdown(
+        "**How the records relate:** The **West-region control system** is an operational "
+        "**asset (A133)**. **West SCADA / Control Upgrade (P033)** is the proposed "
+        "**investment project linked to that asset**. **East Protection System "
+        "Modernisation (P022)** is a separate investment project competing for "
+        "the same limited capital budget."
     )
     st.caption(
-        "Explore how changing one asset condition affects prioritisation and funding. "
-        "All what-if calculations use in-memory data; no asset changes are sent to the EAM API."
+        "ID guide: A = asset; P = proposed project. Asset condition: 1 = very poor, "
+        "10 = excellent. Lower condition increases modelled investment need "
+        "(need = 11 − condition). This simulation never sends asset updates to the EAM API."
     )
 
     if not validation.valid:
@@ -252,10 +260,13 @@ with tab_impact:
             st.error("Expected exactly one A133 asset record.")
         else:
             current_condition = int(assets.loc[asset_mask, "condition_score"].iloc[0])
-            st.write(f"**Current A133 condition:** {current_condition} | **Data source:** {eam_status}")
+            st.write(
+                f"**West-region control system (asset A133):** current condition "
+                f"**{current_condition}/10** | **Source:** {eam_status}"
+            )
 
             simulated_condition = st.number_input(
-                "Simulated A133 condition score",
+                "Simulated condition for the West-region control system (asset A133)",
                 min_value=0,
                 max_value=10,
                 value=5,
@@ -279,24 +290,39 @@ with tab_impact:
                 before_scores = baseline_scored.set_index("project_id")
                 after_scores = simulated_scored.set_index("project_id")
 
+                def project_label(project_id: str) -> str:
+                    name = str(before_scores.at[project_id, "project_name"])
+                    # Demo names end in the numeric portion of their P-prefixed ID.
+                    suffix = str(int(project_id[1:]))
+                    if name.endswith(f" {suffix}"):
+                        name = name[:-(len(suffix) + 1)]
+                    return f"{name} ({project_id})"
+
+                west_project = project_label("P033")
+                east_project = project_label("P022")
+
                 left, right = st.columns(2)
                 with left:
-                    st.markdown("**Current asset data**")
-                    st.metric("A133 investment need", f"{float(before_scores.at['P033', 'asset_condition_need']):g} / 10")
-                    st.metric("Funded capital", f"£{baseline_result['funded_capex_m']:.1f}m")
-                    st.metric("Portfolio score", f"{baseline_result['portfolio_score']:.3f}")
+                    st.markdown("**Current EAM asset condition**")
+                    st.metric("West control-system investment need", f"{float(before_scores.at['P033', 'asset_condition_need']):g} / 10")
+                    st.write(f"**{west_project}:** {'FUNDED' if 'P033' in before_ids else 'DEFERRED'}")
+                    st.write(f"**{east_project}:** {'FUNDED' if 'P022' in before_ids else 'DEFERRED'}")
+                    st.metric("Total funded capital", f"£{baseline_result['funded_capex_m']:.1f}m")
+                    st.metric("Portfolio priority score", f"{baseline_result['portfolio_score']:.3f}")
 
                 with right:
                     st.markdown("**Simulated asset condition**")
-                    st.metric("A133 investment need", f"{float(after_scores.at['P033', 'asset_condition_need']):g} / 10")
-                    st.metric("Funded capital", f"£{simulated_result['funded_capex_m']:.1f}m")
-                    st.metric("Portfolio score", f"{simulated_result['portfolio_score']:.3f}")
+                    st.metric("West control-system investment need", f"{float(after_scores.at['P033', 'asset_condition_need']):g} / 10")
+                    st.write(f"**{west_project}:** {'FUNDED' if 'P033' in after_ids else 'DEFERRED'}")
+                    st.write(f"**{east_project}:** {'FUNDED' if 'P022' in after_ids else 'DEFERRED'}")
+                    st.metric("Total funded capital", f"£{simulated_result['funded_capex_m']:.1f}m")
+                    st.metric("Portfolio priority score", f"{simulated_result['portfolio_score']:.3f}")
 
                 changes = []
                 for project_id in sorted(before_ids ^ after_ids):
                     changes.append({
+                        "Investment project": project_label(project_id),
                         "Project ID": project_id,
-                        "Project": before_scores.at[project_id, "project_name"],
                         "Before": "Funded" if project_id in before_ids else "Deferred",
                         "After": "Funded" if project_id in after_ids else "Deferred",
                         "Capex (£m)": float(before_scores.at[project_id, "capex_m"]),
@@ -305,6 +331,11 @@ with tab_impact:
                     })
 
                 st.markdown("#### Funding decisions that changed")
+                st.caption(
+                    "Only the West-region asset (A133) was modified in memory. "
+                    "The East Protection project (P022) can be deferred because "
+                    "all investment projects compete under the same budget."
+                )
                 if changes:
                     st.dataframe(pd.DataFrame(changes), hide_index=True, use_container_width=True)
                 else:

@@ -36,7 +36,7 @@ jobs:
           HOSTED_DEMO_MODE: "true"
           OPENAI_API_KEY: ""
           EAM_API_URL: "http://127.0.0.1:8001"
-          EAM_API_KEY: "demo-secret-key"
+          EAM_API_KEY: "screenshot-only-eam-test-key-2026"
         run: |
           python -m uvicorn api.mock_eam:app --host 127.0.0.1 --port 8001 > /tmp/eam.log 2>&1 &
           python -m streamlit run app.py --server.headless true --server.address 127.0.0.1 --server.port 8501 > /tmp/streamlit.log 2>&1 &

@@ -121,6 +121,45 @@ The predefined scenarios are:
 
 Weights are defined in `src/scenarios.py`. The optimiser uses binary project decisions to maximise the **sum of priority scores**, subject to a **capital budget** and selection of **mandatory projects**. See `src/scoring.py` and `src/optimiser.py` for the implemented logic. Priority scores are relative model weights, not monetised benefits or discounted cash flows.
 
+## Synthetic datasets: generation and provenance
+
+**All project, financial, asset-condition and inspection values in the demonstration are fictional.** They are not customer extracts, real utility asset records or calibrated engineering-risk estimates. The datasets were designed to exercise a realistic *data workflow and investment decision*, not to represent a real network.
+
+### How the data was created
+
+[`scripts/generate_data.py`](scripts/generate_data.py) creates the core CSV files using Python's `random` module with fixed seeds (**42** for the investment portfolio and **43** for the linked assets). The generator:
+
+1. Creates **40 candidate investment projects** (`P001`–`P040`), each with an associated asset ID, project type, region, illustrative capital cost, strategic scoring inputs, delivery risk, maturity and a rule-based mandatory flag.
+2. Creates **39 mock EAM asset records**, linked to projects by `asset_id`. One asset is intentionally absent (`A134`, linked to `P034`); the condition value for `A122` is deliberately missing; and some inspection dates are older. These are test cases for reconciliation and missing-data handling.
+3. Produces a separate **dirty portfolio** by injecting invalid capital costs, an out-of-range criticality value, missing fields and a duplicate project ID.
+
+The fixed seeds make the scripted data generation repeatable. The asset-condition scores, costs and strategic inputs are illustrative assumptions, **not predictions or measurements**.
+
+### Files and their roles
+
+| File | Purpose |
+| --- | --- |
+| [`investment_portfolio_clean.csv`](data/investment_portfolio_clean.csv) | 40 valid synthetic investment candidates used for scenario scoring and capital optimisation |
+| [`investment_portfolio_dirty.csv`](data/investment_portfolio_dirty.csv) | Intentionally invalid version used to demonstrate validation failures and blocked optimisation |
+| [`assets.csv`](data/assets.csv) | Working asset dataset read by the mock EAM REST API, or by the local fallback when the API is unavailable |
+| [`assets_seed.csv`](data/assets_seed.csv) | Checked-in, fixed asset reference for reproducible condition-impact tests and sensitivity analysis; **not overwritten** by the generation script |
+
+### How the data becomes an investment decision
+
+The application loads and validates the selected portfolio; reconciles each project's `asset_id` to its mock EAM record; and converts an available condition score into an investment-need input (`11 − condition_score`, where **1 means very poor condition and 10 means excellent condition**). Missing condition values receive an explicitly identified neutral fallback of **5.5**. Scenario weights in `src/scenarios.py` produce relative priority scores in `src/scoring.py`; `src/optimiser.py` then selects a funded set subject to the chosen capital budget and mandatory-project constraints.
+
+For the controlled **A133 condition 8 → 5** example, the application modifies an in-memory copy, then recalculates the plan. The fixed `assets_seed.csv` allows the tests to reproduce that outcome independently of the mock API's current state. The synthetic customer policy and public Ofgem documents are **retrieval/reference material**, not sources of the synthetic investment figures.
+
+### Optional regeneration
+
+From the project root, after installing the requirements:
+
+```powershell
+python scripts/generate_data.py
+```
+
+**Caution:** This command **overwrites** `investment_portfolio_clean.csv`, `investment_portfolio_dirty.csv` and `assets.csv`. It does **not** regenerate `assets_seed.csv`. The checked-in datasets are already provided, so regeneration is unnecessary to run the application. To experiment with data generation, use a separate disposable clone or working copy; preserve the reference files used by the documented demonstration and tests.
+
 ## Data quality and external integration
 
 The repository includes `data/investment_portfolio_clean.csv` and a deliberately invalid `data/investment_portfolio_dirty.csv`. The dirty extract illustrates duplicate IDs, missing fields, negative capex and out-of-range scores; the application blocks optimisation when validation fails.

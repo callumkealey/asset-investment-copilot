@@ -1,64 +1,65 @@
-# AI Asset Investment Planning Copilot
+# Asset Investment Planning Copilot
 
-[![Python tests](https://github.com/callumkealey/asset-investment-copilot/actions/workflows/tests.yml/badge.svg)](https://github.com/callumkealey/asset-investment-copilot/actions/workflows/tests.yml)
+I built a Python and Streamlit prototype to answer a capital planning question for a fictional electricity transmission operator. If an asset’s condition deteriorates, which projects should receive funding, and can a planner trace why the allocation changed?
 
-**From operational asset condition to a defensible capital-investment decision.**
+**[Open the live demo](https://asset-investment-copilot.streamlit.app/)** · [Reproduce the result](#reproduce-the-result) · [View the test workflow](https://github.com/callumkealey/asset-investment-copilot/actions/workflows/tests.yml)
 
-## Live hosted demonstration
+## Case study — One asset condition change switches funding
 
-**[Launch the interactive application](https://asset-investment-copilot.streamlit.app/)** · [Source code and setup instructions](https://github.com/callumkealey/asset-investment-copilot)
+With 40 synthetic project candidates, a £250m budget and the Balanced strategy, I lowered the condition score of control-system asset A133 from 8 to 5 while holding the inspection date and all other inputs constant. Its linked SCADA upgrade, P033, entered the funded portfolio and a separate protection modernisation project, P022, was deferred.
 
-The hosted Streamlit interface connects over HTTPS to a separately deployed **FastAPI mock enterprise asset-management (EAM) service** on Render. Reviewers can explore a synthetic portfolio, compare capital-allocation scenarios, test data-quality controls and use the **Asset impact** tab to see how changing asset A133's condition from 8 to 5 affects funding at a £250m Balanced budget. The what-if calculation runs in memory and does not alter the EAM records.
+| Measure | A133 at 8 | A133 at 5 |
+| --- | ---: | ---: |
+| P033 priority score | 5.850 | 6.300 |
+| P033 SCADA upgrade | Deferred | Funded |
+| P022 protection modernisation | Funded | Deferred |
+| Projects funded | 16 | 16 |
+| Allocated capital | £249.9m | £243.2m |
+| Portfolio priority-score objective | 93.825 | 93.900 |
 
-The **AI Copilot** is available to authorised reviewers with a separately supplied access code. It uses OpenAI tool calling to retrieve information and execute trusted portfolio tools; supporting document search is available without AI access. Please request the access code privately—**no API keys or passwords are published in this repository**.
+The lower condition score increased P033’s modelled investment need. The optimiser selected a different project mix under the same budget. The £6.7m difference measures lower allocation in this synthetic run. The objective measures the sum of project priority scores. The model measures portfolio selection, with financial benefits outside its scope.
 
-The hosted API operates in read-only demo mode, while local development retains controlled mutation/reset capabilities. The demonstration has been checked in a normal browser, a private browsing session and on another laptop. It remains an **independent prototype using synthetic data**, not a commercial customer implementation, enterprise production deployment or a validated real-world investment methodology. Hosted service startup delays and usage limits may apply.
+**Try it in the demo.** Select **Clean demo**, **Balanced** and **£250m**. Enable EAM integration and check for **REST** status. In **Asset impact**, check that A133’s baseline is 8, set the simulated condition to 5 and select **Compare funding decisions**. The comparison runs in memory. The hosted mock API serves asset records in read-only mode. The AI Copilot requires a separately supplied access code.
 
+![Asset Impact tab showing the before-and-after funding decision](docs/Images/asset-impact.png)
 
+## What I built
 
-A self-directed, synthetic technical project exploring how an asset-intensive organisation could use operational asset data to inform capital-investment decisions. It combines an investment portfolio, an external asset-management feed, deterministic prioritisation, budget-constrained optimisation, document retrieval and a tool-calling AI copilot in one Streamlit application. The implementation takes inspiration from forward-deployed engineering: start with a concrete decision, build a working vertical slice, then test how new operational data affects the outcome.
+- **REST integration and data quality.** Streamlit reads from a separately deployed mock enterprise asset-management (EAM) service on Render. The app reconciles asset IDs to projects, shows when it uses the local fallback and blocks optimisation when portfolio validation fails. [FastAPI service](api/mock_eam.py) · [API-key-authenticated REST client](src/eam_client.py)
+- **Analytics and optimisation.** Configurable scenario weights produce project priority scores. A SciPy/HiGHS mixed-integer optimiser maximises their sum subject to the capital budget and mandatory-project constraints. A 15-run sensitivity grid tests the funding decision across five conditions and three budgets. [Scenario weights](src/scenarios.py) · [Optimiser](src/optimiser.py)
+- **AI decision support.** An OpenAI tool-calling agent looks up assets, runs or compares scenarios and retrieves supporting passages. Python calculates the funding decisions. The Copilot shows its tool trace so reviewers can inspect the basis for an explanation. [Agent](src/agent.py) · [Tools](src/tools.py)
 
-The central question is: **if the condition of an operational asset changes, does the investment plan change—and can we explain why?**
+**Scope.** This is an independent portfolio prototype with a mock integration and fictional project, cost and condition data. The scores and allocations are illustrative. Real-world use would require validation with planners and asset engineers.
 
-> **Scope and attribution:** This is an independent synthetic demonstration, not a customer implementation or a commercial asset-planning product. It uses no confidential client data and is not affiliated with any vendor, utility or regulator. Public Ofgem documents, when downloaded, are used as attributable reference material, not as proof of regulatory approval or compliance.
+## Reproduce the result
 
-## At a glance
+Follow [Run locally](#run-locally) to install dependencies, then run:
 
-| Capability | Implementation | Business purpose |
-| --- | --- | --- |
-| Data-quality controls | Python validation and asset-ID reconciliation | Avoid recommendations based on invalid or unmatched records |
-| Transparent prioritisation | Configurable scenario weights | Show why projects are ranked differently |
-| Capital allocation | SciPy/HiGHS mixed-integer optimisation | Select a portfolio within a capital budget, including mandatory projects |
-| External asset integration | FastAPI mock EAM service, REST client, API key | Incorporate condition data from a simulated system of record |
-| What-if analysis | Streamlit **Asset impact** tab | Recalculate funding decisions without modifying EAM asset records |
-| AI decision support | OpenAI tool-calling agent | Explain trusted model outputs and retrieve supporting evidence |
-| Evidence retrieval | Local TF-IDF; optional embeddings | Distinguish source material from calculated investment results |
-| Regression coverage | 15 pytest tests in the latest verified run | Detect changes that break critical controls or funding behaviour |
+```powershell
+python -m pytest -q
+```
 
-## Demonstrated outcome: condition change alters capital allocation
+The latest documented local run reported **15 passing tests**. The [condition-impact regression](tests/test_condition_impact.py) uses the [checked-in asset seed](data/assets_seed.csv) and verifies the P033/P022 funding switch without an API server or OpenAI key. The suite also covers validation, scoring, optimiser constraints, mandatory projects, API access controls and agent asset lookup. [GitHub Actions](https://github.com/callumkealey/asset-investment-copilot/actions/workflows/tests.yml) runs pytest on Python 3.13 and Ubuntu.
 
-The reproducible demonstration uses **40 synthetic investment candidates**, the **Balanced** strategy and a **£250m** capital budget. A133 is a West-region control-system asset linked to **P033 — West SCADA / Control Upgrade 33**.
+For the separate REST-connected check, start the mock EAM service and run:
 
-**Identifier guide:** `A` identifies an operational **asset**, whereas `P` identifies a proposed **investment project**. **A133** is the West-region control system; **P033** is the West SCADA / Control Upgrade linked to that asset; **P022** is a separate East Protection System Modernisation project competing for the same funding. Lower asset condition scores mean poorer condition (1 = very poor, 10 = excellent); the modelled investment-need score increases as condition falls. The P022 decision changes because of the shared capital constraint, **not** because P022 is the same asset as A133.
+```powershell
+python -u -m scripts.condition_impact_check
+```
 
-With the same portfolio, budget, scenario and inspection date, changing **only** A133's condition score from **8 to 5** changes P033's calculated priority and the optimiser's funding selection:
+The screenshot shows the Streamlit workflow with the local mock API and checked-in synthetic data. [Screenshot capture script](scripts/capture_asset_impact.py)
 
-| Measure | Baseline: A133 = 8 | What-if: A133 = 5 | Difference |
-| --- | ---: | ---: | ---: |
-| P033 priority score | 5.850 | 6.300 | +0.450 |
-| P033 funding | Deferred | **Funded** | Enters programme |
-| P022 funding | **Funded** | Deferred | Leaves programme |
-| Funded project count | 16 | 16 | Unchanged |
-| Total funded capex | £249.9m | £243.2m | −£6.7m |
-| Portfolio objective score | 93.825 | 93.900 | +0.075 |
+## Sensitivity analysis
 
-P022 is **East Protection System Modernisation 22**, with £25.7m capex and a 6.225 priority score. P033 has £19.0m capex. Both cases satisfy the £250m budget in the observed run.
+Across five tested A133 condition scores, P033 was deferred throughout at £200m and funded throughout at £300m. At £250m it switched from deferred at 6 to funded at 5. That is a sampled switch under the Balanced model’s weights, costs and constraints.
 
-**Interpretation:** The condition input changes the modelled need for P033; the optimiser then selects a different combination of investments. The £6.7m difference is **less capital allocated in this model run**, not a realised saving or benefit forecast. The 0.075 improvement is in the synthetic **priority-score objective**, not a financial return measure. The scenario demonstrates sensitivity and reproducibility within the prototype; it is not independent validation of real-world asset-risk outcomes.
+```powershell
+python -m scripts.sensitivity_analysis
+```
 
-The change was reproduced both through the mock REST-connected Streamlit workflow and through a condition-only controlled test. The what-if tab changes an **in-memory copy** and sends **no asset update request** to the mock EAM API. The application may still refresh its local SQLite portfolio store during normal Streamlit reruns; the entire application is not represented as transactionally read-only.
+The script reads the checked-in asset seed and runs the deterministic scoring and optimiser independently of the EAM API, OpenAI and SQLite. It writes [the results CSV](reports/sensitivity_analysis.csv) for all 15 combinations and a [findings report](reports/sensitivity_findings.md). See the [sensitivity analysis method](docs/sensitivity_analysis.md).
 
-## Architecture
+## Architecture and data
 
 ```mermaid
 flowchart LR
@@ -78,37 +79,8 @@ flowchart LR
     R --> UI
 ```
 
-**Engineering boundaries**
-
-- **Python owns the decisions.** Validation, scenario scoring, mandatory-project checks and mixed-integer capital optimisation are deterministic and independently testable. The language model does not invent the allocation maths.
-- **The EAM feed is an integration boundary.** The mock FastAPI service supports asset retrieval and demo mutation/reset operations; the client reconciles `asset_id` values to portfolio projects. The UI identifies when REST is unavailable and a local asset-data fallback is used.
-- **RAG supplies context, not numerical authority.** Retrieved policy or regulatory passages support explanations. Synthetic customer policy must not be confused with Ofgem determinations or binding obligations.
-- **A single agent is sufficient.** The workflow uses explicit tools and exposes a tool trace rather than introducing multiple coordinating agents for a compact task.
-- **Human approval remains essential.** Outputs are planning recommendations, not autonomous capital approvals.
-
-### Technology
-
-Python, pandas, Streamlit, FastAPI, requests, SQLite, SciPy/HiGHS, pytest and the OpenAI Responses API. The document retriever defaults to TF-IDF; an optional embeddings mode is available through environment configuration.
-
-## Problem framing and implementation approach
-
-A fictional transmission organisation has more candidate projects than available capital. Reliability, regulatory drivers, network capacity, carbon, customer impact, project maturity and asset condition compete for funding. Planners need a transparent basis for funding and deferral, with a way to test new evidence.
-
-This is a **personal exploration of the problem and the engineering trade-offs**, rather than work commissioned by a customer. The fictional stakeholder request below is a design exercise used to test how the architecture responds to a realistic integration requirement.
-
-**Iteration 1 — establish a working decision model:** import the portfolio, enforce data-quality rules, compare four strategic scoring scenarios, optimise the funded set against a budget, persist project data in SQLite and explain the results with the Copilot.
-
-**Hypothetical stakeholder requirement:**
-
-> “Our asset condition changes regularly and lives in our enterprise asset-management system. We do not want planners maintaining another spreadsheet.”
-
-**Iteration 2 — incorporate external operational data:** add an API-key-protected mock EAM REST service, reconcile assets to proposed projects, display data-quality exceptions, expose an asset lookup tool to the agent and incorporate condition changes into investment scoring.
-
-**Iteration 3 — test sensitivity and explainability:** implement a controlled A133 condition-change regression test, an interactive in-memory before/after comparison, and a 15-run sensitivity grid over five asset conditions and three capital budgets.
-
-The hypothetical integration case study and enterprise considerations are documented in `docs/customer_change_request.md` and `docs/productionisation.md`.
-
-## Strategy and optimiser
+<details>
+<summary>Scoring and strategy</summary>
 
 The predefined scenarios are:
 
@@ -119,9 +91,12 @@ The predefined scenarios are:
 | **Net Zero** | Carbon and network enablement |
 | **Regulatory Compliance** | Regulatory drivers |
 
-Weights are defined in `src/scenarios.py`. The optimiser uses binary project decisions to maximise the **sum of priority scores**, subject to a **capital budget** and selection of **mandatory projects**. See `src/scoring.py` and `src/optimiser.py` for the implemented logic. Priority scores are relative model weights, not monetised benefits or discounted cash flows.
+Weights are defined in [src/scenarios.py](src/scenarios.py). The optimiser uses binary project decisions to maximise the **sum of priority scores**, subject to a **capital budget** and selection of **mandatory projects**. See [src/scoring.py](src/scoring.py) and [src/optimiser.py](src/optimiser.py) for the implemented logic. Priority scores are relative model weights, not monetised benefits or discounted cash flows.
 
-## Synthetic datasets: generation and provenance
+</details>
+
+<details>
+<summary>Synthetic data and validation</summary>
 
 **All project, financial, asset-condition and inspection values in the demonstration are fictional.** They are not customer extracts, real utility asset records or calibrated engineering-risk estimates. The datasets were designed to exercise a realistic *data workflow and investment decision*, not to represent a real network.
 
@@ -160,15 +135,16 @@ python scripts/generate_data.py
 
 **Caution:** This command **overwrites** `investment_portfolio_clean.csv`, `investment_portfolio_dirty.csv` and `assets.csv`. It does **not** regenerate `assets_seed.csv`. The checked-in datasets are already provided, so regeneration is unnecessary to run the application. To experiment with data generation, use a separate disposable clone or working copy; preserve the reference files used by the documented demonstration and tests.
 
-## Data quality and external integration
-
 The repository includes `data/investment_portfolio_clean.csv` and a deliberately invalid `data/investment_portfolio_dirty.csv`. The dirty extract illustrates duplicate IDs, missing fields, negative capex and out-of-range scores; the application blocks optimisation when validation fails.
 
 The synthetic asset feed also exercises mismatches, absent condition data and older inspection dates. Reconciliation and status outputs make these limitations visible instead of silently assuming perfect data. The app reports whether it is using **REST** or a **local fallback**; the fallback is useful for demonstration but should not be mistaken for a live external-system read.
 
 The mock service's asset read and controlled demo-update/reset endpoints are exposed in its local FastAPI documentation at `http://127.0.0.1:8001/docs`. Its API key is a **prototype-only shared secret**, not enterprise-grade identity management.
 
-## AI copilot and supporting documents
+</details>
+
+<details>
+<summary>Copilot tools and sources</summary>
 
 The single tool-calling agent can use:
 
@@ -190,7 +166,11 @@ A synthetic customer investment policy is included. The optional `scripts/fetch_
 
 The retrieval layer is not a regulatory compliance engine. Source provenance, document date and the distinction between customer assumptions and regulatory text remain important when interpreting answers.
 
-## Run locally (Windows / VS Code)
+The retriever defaults to TF-IDF and supports optional embeddings. The single agent uses explicit tools. Human approval remains part of any real capital planning workflow.
+
+</details>
+
+## Run locally
 
 The application was developed using Python in Visual Studio Code on Windows. The following instructions use PowerShell commands, which can be run either in the VS Code integrated terminal or in a standalone PowerShell window.
 
@@ -239,61 +219,12 @@ python -m streamlit run app.py
 
 Open the local URL Streamlit prints (normally `http://localhost:8501`). The sidebar controls portfolio data mode, budget, scenario and EAM integration.
 
-### 6. Run automated tests
+The hosted mock API runs in read-only mode. Local development supports controlled update and reset operations. The Asset impact comparison sends no asset update request, although normal Streamlit reruns can refresh the local SQLite portfolio store.
 
-```powershell
-python -m pytest -q
-```
+<details>
+<summary>More ways to explore</summary>
 
-The latest locally verified run reported **15 passed**. GitHub Actions also runs the pytest suite on **Python 3.13 / Ubuntu** after pushes to `main` and on pull requests. The automated suite uses checked-in synthetic data and mocks; it does not require a running EAM server or an OpenAI API key. Re-run locally before pushing changes.
-
-For a separate manual, REST-connected condition-impact check, keep the EAM API running and execute:
-
-```powershell
-python -u -m scripts.condition_impact_check
-```
-
-The automated regression test in `tests/test_condition_impact.py` instead reads baseline seed data and does **not** require an API server.
-
-## Sensitivity analysis: condition × budget
-
-The standalone script explores how funding depends jointly on **asset condition** and **available capital**. It compares five A133 condition scores (8, 7, 6, 5, 4) across three budgets (£200m, £250m, £300m), holding other portfolio inputs and the **Balanced** strategy constant.
-
-```powershell
-python -m scripts.sensitivity_analysis
-```
-
-It writes `reports/sensitivity_analysis.csv` and `reports/sensitivity_findings.md`. The script reads the checked-in synthetic asset seed, calls the existing deterministic scoring and optimiser, and **does not call the EAM API, OpenAI or SQLite**.
-
-| Budget | Condition sensitivity observed for P033 |
-| --- | --- |
-| £200m | Deferred at all five tested conditions |
-| £250m | Deferred at conditions 8, 7 and 6; funded at 5 and 4 |
-| £300m | Funded at all five tested conditions |
-
-At £250m, P033 replaces P022 as the condition changes between **6 and 5**. This is a **sampled decision threshold within the synthetic model**, not a validated real-world engineering threshold. At £200m the capital constraint prevents P033's funding at every tested condition, while at £300m both projects remain funded.
-
-For full outputs, see the generated CSV and Markdown report, and `docs/sensitivity_analysis.md`. The exact threshold and selected portfolio depend on scoring weights, costs and constraints. The analysis tests *sensitivity*, not the empirical calibration or external validity of the scoring model.
-
-## Screenshot
-
-The screenshot below was captured from the running Streamlit application and local mock EAM service using browser automation and checked-in synthetic data. It shows the £250m Balanced scenario with the West-region control system's condition simulated from 8 to 5. The capture script is `scripts/capture_asset_impact.py`.
-
-![Asset Impact — before/after synthetic funding decision](docs/Images/asset-impact.png)
-
-_Illustrative synthetic data. No real customer capital decision or realised financial saving is claimed._
-
-## Explore the prototype
-
-A useful way to explore the implementation and trace the decision logic is to follow this sequence:
-
-1. **Portfolio:** choose **Clean demo**, **Balanced**, **£250m** and enable the EAM integration. Confirm the status is **REST**, not **Fallback**. Show the funded and deferred investments.
-2. **Asset impact:** with **Clean demo**, **Balanced** and **£250m** selected, inspect the current A133 condition and set the *simulated* score to 5. If the current condition is 8, choose **Compare funding decisions** to reproduce P033 entering, P022 leaving, £249.9m → £243.2m and 93.825 → 93.900. Expand **Integration rationale and ranking diagnostics** for the hypothetical requirement, REST/data reconciliation design and rankings with versus without the EAM feed. No asset records are modified by this comparison. The hosted demo does not provide reset controls.
-3. **Copilot:** ask the agent to retrieve A133 or run a £250m Balanced scenario. Expand the tool trace to show that data and calculations came from tools, not invented text. For document questions, inspect the retrieved source and page/section context.
-4. **Data quality:** switch to the **Dirty data test** extract and demonstrate that invalid inputs block optimisation; switch back to Clean demo afterwards.
-5. **Architecture and limitations:** explain the REST integration boundary, deterministic optimiser, retrieval layer, and where production engineering would be required.
-
-**Suggested Copilot prompts:**
+Switch to **Dirty data test** to see validation block optimisation. Switch back to **Clean demo** for scenario comparisons. In **Asset impact**, expand **Integration rationale and ranking diagnostics** to compare rankings with and without the EAM feed. In **Copilot**, expand the tool trace to inspect calls and results.
 
 - “Retrieve asset A133, show its condition and the portfolio project linked to it. Do not infer missing metadata.”
 - “With a £250m budget under Balanced, which projects are funded and what are the trade-offs?”
@@ -301,75 +232,12 @@ A useful way to explore the implementation and trace the decision logic is to fo
 - “What portfolio data-quality issues would block a recommendation?”
 - “What does the supporting Ofgem material actually say about the relevant risk or investment issue? Cite the source.”
 
-## Testing and evidence
+</details>
 
-The pytest suite covers portfolio validation, optimiser constraints, mandatory investments, scoring behaviour, API access controls, the agent's `get_asset` integration and the **condition-only funding-switch regression**. In the controlled condition test, the seed assets are copied in memory; the test verifies the expected P022/P033 funding exchange without requiring REST or changing source files.
+## Limitations and production path
 
-**Evidence verified in the prototype:** 40 portfolio candidates, 39 asset records returned by the live mock API, successful individual-asset retrieval for A133, a **15-test passing suite**, a **15-combination sensitivity matrix**, and the reproduced £250m Balanced condition-impact comparison.
+- Replace the mock service and shared API secret with supported enterprise integration, schema contracts, service identity and least-privilege access.
+- Establish data ownership, lineage, freshness rules and quality thresholds. Validate scoring, investment horizons, dependencies and economic objectives with planners and asset engineers.
+- Add operational controls for retries, monitoring, audit trails, recovery and approvals. Evaluate agent responses and source attribution, and harden access to enterprise data.
 
-**Boundaries of the evidence:** These are synthetic, local results. Test success does not demonstrate enterprise reliability, production security, regulatory compliance or independently validated asset-health models.
-
-## Production path and limitations
-
-This is an **MVP**, not a production asset-investment platform. Priorities for a real deployment include:
-
-- Replace the mock EAM API with a supported enterprise integration, including formal schema contracts, service identity, least-privilege authorisation and secrets management.
-- Establish data ownership, quality SLAs, inspection-date semantics, condition-score direction/scale, reconciliation rules, freshness thresholds and lineage.
-- Validate scoring weights, constraint logic, investment horizons, dependencies and economic objectives with planners and asset engineers; extend the prototype sensitivity tests to uncertainty analysis and documented model governance.
-- Implement retry/backoff, timeouts, monitoring, audit logs, idempotency, durable scenario records, failure alerts and disaster-recovery controls.
-- Harden retrieval and agent execution against prompt injection, unsupported claims and disclosure of sensitive enterprise records; evaluate source attribution and response accuracy.
-- Add CI/CD, deployment configuration, automated integration/security tests, RBAC, approval workflow and controlled write operations.
-
-See `docs/productionisation.md` for the fuller production-gap assessment.
-
-## Repository map
-
-```text
-.
-├── app.py                           # Streamlit UI, including Asset impact
-├── api/
-│   └── mock_eam.py                 # Mock EAM REST API
-├── data/
-│   ├── investment_portfolio_clean.csv
-│   ├── investment_portfolio_dirty.csv
-│   ├── assets.csv
-│   ├── assets_seed.csv             # Stable assets for controlled tests
-│   └── documents/                 # Customer policy and optional Ofgem PDFs
-├── src/
-│   ├── agent.py                    # OpenAI tool-calling orchestration
-│   ├── tools.py                    # Trusted portfolio/retrieval/asset tools
-│   ├── eam_client.py               # EAM REST client
-│   ├── data_loader.py
-│   ├── validation.py
-│   ├── scoring.py
-│   ├── optimiser.py                # SciPy/HiGHS MILP
-│   ├── scenarios.py
-│   ├── retrieval.py
-│   └── database.py                 # SQLite portfolio store
-├── scripts/
-│   ├── condition_impact_check.py   # Manual REST-connected check
-│   ├── sensitivity_analysis.py    # 15-run condition/budget grid
-│   ├── fetch_public_docs.py
-│   └── generate_data.py
-├── tests/
-│   ├── test_condition_impact.py    # Condition-only funding regression
-│   ├── test_asset_tool.py          # Asset tool tests
-│   ├── test_sensitivity_analysis.py # Deterministic sensitivity tests
-│   └── ...
-├── docs/
-│   ├── customer_change_request.md
-│   ├── sensitivity_analysis.md
-│   ├── Images/asset-impact.png     # Genuine screenshot of synthetic what-if UI
-│   ├── productionisation.md
-│   └── ...
-├── requirements.txt
-└── .env.example
-```
-
-## What this project demonstrates
-
-The purpose of this project is to make the **reasoning, design decisions and implementation logic** visible. It is not presented as a commercial deployment or a replacement for a regulated investment-planning platform.
-
-The approach is to **define the decision → build a small working system → establish data and integration boundaries → test a realistic change in requirements → measure the resulting decision impact → document trade-offs and production gaps**.
-
-The strongest result is not an AI-generated answer: it is that a **controlled change in operational asset condition produces a reproducible, explainable change in a budget-constrained investment selection**. The documentation and tests are intended to let others inspect, reproduce and challenge that logic.
+See the [production assessment](docs/productionisation.md) and the [hypothetical stakeholder request](docs/customer_change_request.md), which served as a design exercise. The synthetic results establish how the prototype behaves under its own assumptions. Regulatory compliance and real-world investment performance would require separate evaluation.
